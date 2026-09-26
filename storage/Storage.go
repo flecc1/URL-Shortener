@@ -3,7 +3,7 @@ package storage
 import "url-shortener/models"
 
 type Storage interface {
-	Crate(url string) (*models.URLRecord, error)
+	Create(url string) (*models.URLRecord, error)
 	Get(id string) (*models.URLRecord, error)
 	UpdateById(id, url string) error
 	DeleteById(id string) error
