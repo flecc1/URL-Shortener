@@ -1,5 +1,11 @@
 package models
 
-type Url struct {
-	Url string
+import "time"
+
+type URLRecord struct {
+	ID             string
+	OriginalURL    string
+	CreatedAt      time.Time
+	AccessedCount  int
+	LastAccessedAt time.Time
 }
