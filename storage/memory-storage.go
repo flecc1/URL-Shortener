@@ -1,14 +1,12 @@
 package storage
 
 import (
-	"sync"
 	"time"
 	"url-shortener/models"
 )
 
 type MemoryStorage struct {
-	data  map[string]*models.URLRecord
-	mutex sync.RWMutex
+	data map[string]*models.URLRecord
 }
 
 func (m *MemoryStorage) generateUniqID() (string, error) {
@@ -20,6 +18,12 @@ func (m *MemoryStorage) generateUniqID() (string, error) {
 		return m.generateUniqID()
 	}
 	return id, nil
+}
+
+func NewMemoryStorage() *MemoryStorage {
+	return &MemoryStorage{
+		data: make(map[string]*models.URLRecord),
+	}
 }
 
 func (m *MemoryStorage) Create(url string) (*models.URLRecord, error) {
