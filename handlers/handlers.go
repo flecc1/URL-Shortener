@@ -3,9 +3,9 @@ package handlers
 import "url-shortener/storage"
 
 type Handler struct {
-	store storage.MemoryStorage
+	store storage.Storage
 }
 
-func NewHandler(store storage.MemoryStorage) *Handler {
+func NewHandler(store storage.Storage) *Handler {
 	return &Handler{store: store}
 }
