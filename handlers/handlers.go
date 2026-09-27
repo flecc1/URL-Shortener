@@ -120,7 +120,7 @@ func (h *Handler) linkHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 	record, err := h.store.Get(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) 
 		return
 	}
 	if err := h.store.UpdateById(id, req.URL); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -162,7 +162,7 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) 
 func (h *Handler) statsHandler(w http.ResponseWriter, r *http.Request, id string) {
 	record, err := h.store.Get(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
