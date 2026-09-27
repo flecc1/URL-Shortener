@@ -9,7 +9,7 @@ import (
 
 func main() {
 	store := storage.NewMemoryStorage()
-	h := handlers.NewHandler(store)
+	h := handlers.NewHandler(store, "http://localhost:8080")
 
 	http.HandleFunc("/shorten", h.ShortenHandler)
 	http.HandleFunc("/shorten/", h.LinkHandler)

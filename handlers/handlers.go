@@ -12,7 +12,8 @@ import (
 )
 
 type Handler struct {
-	store storage.Storage
+	store   storage.Storage
+	baseURL string
 }
 
 type shortenRequest struct {
@@ -32,8 +33,8 @@ type statsResponse struct {
 	AccessCount    int    `json:"access_count"`
 }
 
-func NewHandler(store storage.Storage) *Handler {
-	return &Handler{store: store}
+func NewHandler(store storage.Storage, baseURL string) *Handler {
+	return &Handler{store: store, baseURL: baseURL}
 }
 
 func IsValidURL(URL string) bool {
@@ -66,7 +67,7 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := toShortenResponse(record)
+	response := h.toShortenResponse(record)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -90,10 +91,10 @@ func requestIsValid(w http.ResponseWriter, r *http.Request) (string, error) {
 	return req.URL, nil
 }
 
-func toShortenResponse(record *models.URLRecord) shortenResponse {
+func (h *Handler) toShortenResponse(record *models.URLRecord) shortenResponse {
 	return shortenResponse{
 		ID:          record.ID,
-		ShortURL:    "http://localhost:8080/" + record.ID,
+		ShortURL:    h.baseURL + "/" + record.ID,
 		OriginalURL: record.OriginalURL,
 		CreatedAt:   record.CreatedAt.Format(time.RFC3339),
 	}
@@ -137,7 +138,7 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	response := toShortenResponse(record)
+	response := h.toShortenResponse(record)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
