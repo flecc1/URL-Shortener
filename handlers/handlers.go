@@ -88,7 +88,7 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) linkHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/shorten/")
-	isStats := strings.HasSuffix(path, "/stats/")
+	isStats := strings.HasSuffix(path, "/stats")
 	id := strings.TrimSuffix(path, "/stats/")
 
 	if id == "" {
