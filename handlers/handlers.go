@@ -116,6 +116,27 @@ func (h *Handler) linkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
+	record, err := h.store.Get(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := shortenResponse{
+		ID:          record.ID,
+		OriginalURL: record.OriginalURL,
+		CreatedAt:   record.CreatedAt.Format(time.RFC3339),
+		ShortURL:    "http://localhost:8080/" + record.ID,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (h *Handler) statsHandler(w http.ResponseWriter, r *http.Request, id string) {
 	record, err := h.store.Get(id)
 	if err != nil {
@@ -134,5 +155,6 @@ func (h *Handler) statsHandler(w http.ResponseWriter, r *http.Request, id string
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
