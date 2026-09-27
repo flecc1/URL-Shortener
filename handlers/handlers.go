@@ -89,7 +89,7 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) linkHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/shorten/")
 	isStats := strings.HasSuffix(path, "/stats")
-	id := strings.TrimSuffix(path, "/stats/")
+	id := strings.TrimSuffix(path, "/stats")
 
 	if id == "" {
 		http.Error(w, "id required", http.StatusBadRequest)
@@ -157,6 +157,14 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) deleteLink(w http.ResponseWriter, r *http.Request, id string) {
+	if err := h.store.DeleteById(id); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) statsHandler(w http.ResponseWriter, r *http.Request, id string) {
