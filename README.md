@@ -24,13 +24,15 @@ REST API для сокращения ссылок на Go, реализован�
 url-shortener/
 ├── main.go
 ├── models/
-│   └── url.go           # структура URLRecord
+│   └── url.go            # структура URLRecord
 ├── storage/
 │   ├── storage.go        # интерфейс Storage
 │   ├── memory_storage.go # реализация на map
 │   └── id_generator.go   # генерация случайного кода
-└── handlers/
-    └── handlers.go        # HTTP-обработчики
+├── handlers/
+│    └── handlers.go      # HTTP-обработчики
+└── dto/
+     └── Dtos.go          # DTO
 ```
 
 ## Запуск
