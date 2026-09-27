@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -54,9 +55,12 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
-	req := shortenRequest{}
-
-	record, err := h.store.Create(req.URL)
+	newURL, err := requestIsValid(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	record, err := h.store.Create(newURL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -71,20 +75,19 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func requestIsValid(w http.ResponseWriter, r *http.Request) shortenRequest {
+func requestIsValid(w http.ResponseWriter, r *http.Request) (string, error) {
 	var req shortenRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return shortenRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return "", err
 	}
-	defer r.Body.Close()
+	defer func() {
+		_ = r.Body.Close()
+	}()
 
 	if !IsValidURL(req.URL) {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return shortenRequest{}
+		return "", errors.New("invalid url")
 	}
-	return shortenRequest{URL: req.URL}
+	return req.URL, nil
 }
 
 func toShortenResponse(record *models.URLRecord) shortenResponse {
@@ -111,7 +114,7 @@ func (h *Handler) LinkHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
-		h.statsHandler(w, r, id)
+		h.StatsHandler(w, r, id)
 		return
 	}
 
@@ -144,8 +147,12 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) {
-	req := requestIsValid(w, r)
-	if err := h.store.UpdateById(id, req.URL); err != nil {
+	newURL, err := requestIsValid(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := h.store.UpdateById(id, newURL); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
