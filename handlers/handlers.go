@@ -54,18 +54,7 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
-	var req shortenRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	if !IsValidURL(req.URL) {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
+	req := shortenRequest{}
 
 	record, err := h.store.Create(req.URL)
 	if err != nil {
@@ -80,6 +69,22 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func requestIsValid(w http.ResponseWriter, r *http.Request) shortenRequest {
+	var req shortenRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return shortenRequest{}
+	}
+	defer r.Body.Close()
+
+	if !IsValidURL(req.URL) {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return shortenRequest{}
+	}
+	return shortenRequest{URL: req.URL}
 }
 
 func toShortenResponse(record *models.URLRecord) shortenResponse {
@@ -139,18 +144,7 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) {
-	var req shortenRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	if !IsValidURL(req.URL) {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
+	req := requestIsValid(w, r)
 	if err := h.store.UpdateById(id, req.URL); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
