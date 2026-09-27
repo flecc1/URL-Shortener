@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"url-shortener/dto"
 	"url-shortener/models"
 	"url-shortener/storage"
 )
@@ -14,23 +15,6 @@ import (
 type Handler struct {
 	store   storage.Storage
 	baseURL string
-}
-
-type shortenRequest struct {
-	URL string `json:"url"`
-}
-
-type shortenResponse struct {
-	ID          string `json:"id"`
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
-	CreatedAt   string `json:"created_at"`
-}
-type statsResponse struct {
-	ID             string `json:"id"`
-	CreatedAt      string `json:"created_at"`
-	LastAccessedAt string `json:"last_access_at"`
-	AccessCount    int    `json:"access_count"`
 }
 
 func NewHandler(store storage.Storage, baseURL string) *Handler {
@@ -77,7 +61,7 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func requestIsValid(w http.ResponseWriter, r *http.Request) (string, error) {
-	var req shortenRequest
+	var req dto.ShortenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return "", err
 	}
@@ -91,8 +75,8 @@ func requestIsValid(w http.ResponseWriter, r *http.Request) (string, error) {
 	return req.URL, nil
 }
 
-func (h *Handler) toShortenResponse(record *models.URLRecord) shortenResponse {
-	return shortenResponse{
+func (h *Handler) toShortenResponse(record *models.URLRecord) dto.ShortenResponse {
+	return dto.ShortenResponse{
 		ID:          record.ID,
 		ShortURL:    h.baseURL + "/" + record.ID,
 		OriginalURL: record.OriginalURL,
@@ -176,7 +160,7 @@ func (h *Handler) StatsHandler(w http.ResponseWriter, r *http.Request, id string
 		return
 	}
 
-	response := statsResponse{
+	response := dto.StatsResponse{
 		ID:             record.ID,
 		AccessCount:    record.AccessedCount,
 		CreatedAt:      record.CreatedAt.Format(time.RFC3339),
