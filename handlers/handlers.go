@@ -137,6 +137,27 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 	}
 }
 
+func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) {
+	var req shortenRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if !IsValidURL(req.URL) {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	if err := h.store.UpdateById(id, req.URL); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *Handler) statsHandler(w http.ResponseWriter, r *http.Request, id string) {
 	record, err := h.store.Get(id)
 	if err != nil {
