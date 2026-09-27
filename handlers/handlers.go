@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"url-shortener/models"
 	"url-shortener/storage"
 )
 
@@ -72,17 +73,21 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := shortenResponse{
-		ID:          record.ID,
-		ShortURL:    "http://localhost:8080/" + record.ID,
-		OriginalURL: req.URL,
-		CreatedAt:   record.CreatedAt.Format(time.RFC3339),
-	}
+	response := toShortenResponse(record)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+}
+
+func toShortenResponse(record *models.URLRecord) shortenResponse {
+	return shortenResponse{
+		ID:          record.ID,
+		ShortURL:    "http://localhost:8080/" + record.ID,
+		OriginalURL: record.OriginalURL,
+		CreatedAt:   record.CreatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -124,12 +129,7 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	response := shortenResponse{
-		ID:          record.ID,
-		OriginalURL: record.OriginalURL,
-		CreatedAt:   record.CreatedAt.Format(time.RFC3339),
-		ShortURL:    "http://localhost:8080/" + record.ID,
-	}
+	response := toShortenResponse(record)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
