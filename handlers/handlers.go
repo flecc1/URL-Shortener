@@ -93,6 +93,7 @@ func (h *Handler) linkHandler(w http.ResponseWriter, r *http.Request) {
 
 	if id == "" {
 		http.Error(w, "id required", http.StatusBadRequest)
+		return
 	}
 
 	if isStats {
