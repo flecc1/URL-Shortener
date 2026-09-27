@@ -188,3 +188,23 @@ func (h *Handler) statsHandler(w http.ResponseWriter, r *http.Request, id string
 		return
 	}
 }
+
+func (h *Handler) redirectHandler(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/")
+	if id == "" {
+		http.Error(w, "id required", http.StatusBadRequest)
+		return
+	}
+
+	record, err := h.store.Get(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	err = h.store.IncrementAccess(record.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, record.OriginalURL, http.StatusFound)
+}
