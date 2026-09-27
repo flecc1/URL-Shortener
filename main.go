@@ -2,15 +2,20 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"url-shortener/handlers"
 	"url-shortener/storage"
 )
 
 func main() {
 	store := storage.NewMemoryStorage()
-	record, err := store.Create("http:/twitch.com")
-	if err != nil {
-		fmt.Println(err)
-		return
+	h := handlers.NewHandler(store)
+
+	http.HandleFunc("/shorten", h.ShortenHandler)
+	http.HandleFunc("/shorten/", h.LinkHandler)
+	http.HandleFunc("/", h.RedirectHandler)
+	fmt.Println("Сервер запущен на :8080")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		fmt.Println("ошибка запуска сервера:", err)
 	}
-	fmt.Printf("создано: %+v\n", record)
 }

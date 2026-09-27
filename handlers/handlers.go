@@ -96,7 +96,7 @@ func toShortenResponse(record *models.URLRecord) shortenResponse {
 	}
 }
 
-func (h *Handler) linkHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) LinkHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/shorten/")
 	isStats := strings.HasSuffix(path, "/stats")
 	id := strings.TrimSuffix(path, "/stats")
@@ -161,7 +161,7 @@ func (h *Handler) deleteLink(w http.ResponseWriter, r *http.Request, id string) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) statsHandler(w http.ResponseWriter, r *http.Request, id string) {
+func (h *Handler) StatsHandler(w http.ResponseWriter, r *http.Request, id string) {
 	record, err := h.store.Get(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -183,7 +183,7 @@ func (h *Handler) statsHandler(w http.ResponseWriter, r *http.Request, id string
 	}
 }
 
-func (h *Handler) redirectHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RedirectHandler(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/")
 	if id == "" {
 		http.Error(w, "id required", http.StatusBadRequest)
