@@ -40,6 +40,7 @@ func (s *PostgresStorage) Get(id string) (*models.URLRecord, error) {
 			WHERE id = $1
 `
 	var newURLRecord models.URLRecord
+
 	err := s.db.QueryRow(query, id).Scan(
 		&newURLRecord.ID,
 		&newURLRecord.OriginalURL,
@@ -53,4 +54,26 @@ func (s *PostgresStorage) Get(id string) (*models.URLRecord, error) {
 		return nil, err
 	}
 	return &newURLRecord, nil
+}
+
+func (s *PostgresStorage) UpdateById(id string, url string) error {
+	query := `
+			UPDATE urls
+			SET original_url = $1
+			WHERE id = $2
+`
+	result, err := s.db.Exec(query, id, url)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("url not found")
+	}
+	return nil
 }
