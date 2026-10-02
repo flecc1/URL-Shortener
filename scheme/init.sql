@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS urls(
+    id VARCHAR(50) PRIMARY KEY,
+    original_url TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    accessed_count INT NOT NULL DEFAULT 0,
+    last_accessed_at TIMESTAMP
+);
