@@ -96,3 +96,25 @@ func (s *PostgresStorage) DeleteById(id string) error {
 	}
 	return nil
 }
+
+func (s *PostgresStorage) IncrementAccess(id string) error {
+	query := `
+			UPDATE urls 
+			SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
+			WHERE id = $1
+`
+	result, err := s.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("url not found")
+	}
+	return nil
+}
