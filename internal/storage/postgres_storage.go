@@ -77,3 +77,22 @@ func (s *PostgresStorage) UpdateById(id string, url string) error {
 	}
 	return nil
 }
+
+func (s *PostgresStorage) DeleteById(id string) error {
+	query := `DELETE FROM urls WHERE id = $1`
+
+	result, err := s.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("url not found")
+	}
+	return nil
+}
