@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 	"url-shortener/dto"
+	"url-shortener/internal/storage"
 	"url-shortener/models"
-	"url-shortener/storage"
 )
 
 type Handler struct {

@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"url-shortener/handlers"
-	"url-shortener/storage"
+	"url-shortener/internal/handlers"
+	"url-shortener/internal/storage"
 )
 
 func main() {
