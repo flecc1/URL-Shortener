@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"errors"
 	"url-shortener/models"
 )
 
@@ -27,6 +28,28 @@ func (s *PostgresStorage) Create(utl string) (*models.URLRecord, error) {
 		&newURLRecord.CreatedAt,
 		&newURLRecord.AccessedCount)
 	if err != nil {
+		return nil, err
+	}
+	return &newURLRecord, nil
+}
+
+func (s *PostgresStorage) Get(id string) (*models.URLRecord, error) {
+	query := `
+			SELECT id, original_url, created_at, accessed_count, COALESCE(last_accessed_at, '0001-01-01 00:00:00')
+			FROM urls
+			WHERE id = $1
+`
+	var newURLRecord models.URLRecord
+	err := s.db.QueryRow(query, id).Scan(
+		&newURLRecord.ID,
+		&newURLRecord.OriginalURL,
+		&newURLRecord.CreatedAt,
+		&newURLRecord.AccessedCount,
+		&newURLRecord.LastAccessedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("url not found")
+		}
 		return nil, err
 	}
 	return &newURLRecord, nil
