@@ -82,7 +82,7 @@ go run main.go
 | PUT    | `/shorten/{id}`       | Обновить оригинальный URL        |
 | DELETE | `/shorten/{id}`       | Удалить ссылку                   |
 | GET    | `/shorten/{id}/stats` | Статистика переходов             |
-| GET    | `/all`                | Вытащить все ссылки              |
+| GET    | `/shorten/all`        | Вытащить все ссылки              |
 
 ## Пример использования
 
