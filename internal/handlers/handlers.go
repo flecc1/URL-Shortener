@@ -131,6 +131,19 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 	}
 }
 
+func (h *Handler) GetAllLinksHandler(w http.ResponseWriter, r *http.Request) {
+	records, err := h.store.GetAll()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(records); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) {
 	newURL, err := requestIsValid(w, r)
 	if err != nil {
