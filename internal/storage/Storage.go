@@ -14,4 +14,4 @@ type Storage interface {
 	GetAll() ([]*models.URLRecord, error)
 }
 
-var UrlNotFoundError = errors.New("url not found")
+var RecordNotFoundError = errors.New("record not found")
