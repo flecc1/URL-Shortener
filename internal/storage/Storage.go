@@ -1,6 +1,9 @@
 package storage
 
-import "url-shortener/models"
+import (
+	"errors"
+	"url-shortener/models"
+)
 
 type Storage interface {
 	Create(url string) (*models.URLRecord, error)
@@ -9,3 +12,5 @@ type Storage interface {
 	DeleteById(id string) error
 	IncrementAccess(id string) error
 }
+
+var UrlNotFoundError = errors.New("url not found")

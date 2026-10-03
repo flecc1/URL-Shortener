@@ -54,7 +54,7 @@ func (s *PostgresStorage) Get(id string) (*models.URLRecord, error) {
 		&newURLRecord.LastAccessedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("url not found")
+			return nil, UrlNotFoundError
 		}
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (s *PostgresStorage) UpdateById(id string, url string) error {
 	}
 
 	if rowsAffected == 0 {
-		return errors.New("url not found")
+		return UrlNotFoundError
 	}
 	return nil
 }
@@ -97,7 +97,7 @@ func (s *PostgresStorage) DeleteById(id string) error {
 	}
 
 	if rowsAffected == 0 {
-		return errors.New("url not found")
+		return UrlNotFoundError
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (s *PostgresStorage) IncrementAccess(id string) error {
 	}
 
 	if rowsAffected == 0 {
-		return errors.New("url not found")
+		return UrlNotFoundError
 	}
 	return nil
 }

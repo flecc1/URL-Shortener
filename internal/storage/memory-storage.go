@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"time"
 	"url-shortener/models"
 )
@@ -45,12 +44,12 @@ func (m *MemoryStorage) Get(id string) (*models.URLRecord, error) {
 	if record, ok := m.data[id]; ok {
 		return record, nil
 	}
-	return nil, errors.New("record not found")
+	return nil, UrlNotFoundError
 }
 
 func (m *MemoryStorage) DeleteById(id string) error {
 	if _, ok := m.data[id]; !ok {
-		return errors.New("record not found")
+		return UrlNotFoundError
 	}
 	delete(m.data, id)
 	return nil
@@ -61,7 +60,7 @@ func (m *MemoryStorage) UpdateById(id, url string) error {
 		record.OriginalURL = url
 		return nil
 	}
-	return errors.New("record not found")
+	return UrlNotFoundError
 }
 
 func (m *MemoryStorage) IncrementAccess(id string) error {
@@ -70,5 +69,5 @@ func (m *MemoryStorage) IncrementAccess(id string) error {
 		record.LastAccessedAt = time.Now()
 		return nil
 	}
-	return errors.New("record not found")
+	return UrlNotFoundError
 }
