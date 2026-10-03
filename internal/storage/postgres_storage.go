@@ -67,7 +67,7 @@ func (s *PostgresStorage) UpdateById(id string, url string) error {
 			SET original_url = $1
 			WHERE id = $2
 `
-	result, err := s.db.Exec(query, id, url)
+	result, err := s.db.Exec(query, url, id)
 	if err != nil {
 		return err
 	}
