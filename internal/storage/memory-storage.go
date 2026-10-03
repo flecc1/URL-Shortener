@@ -71,3 +71,11 @@ func (m *MemoryStorage) IncrementAccess(id string) error {
 	}
 	return UrlNotFoundError
 }
+
+func (m *MemoryStorage) GetAll() ([]*models.URLRecord, error) {
+	records := make([]*models.URLRecord, 0, len(m.data))
+	for _, record := range m.data {
+		records = append(records, record)
+	}
+	return records, nil
+}
