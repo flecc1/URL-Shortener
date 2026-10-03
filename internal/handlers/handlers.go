@@ -132,13 +132,24 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func (h *Handler) GetAllLinksHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
 	records, err := h.store.GetAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	responseRecords := make([]dto.ShortenResponse, 0, len(records))
+	for _, record := range records {
+		response := h.toShortenResponse(record)
+		responseRecords = append(responseRecords, response)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(records); err != nil {
+	if err := json.NewEncoder(w).Encode(responseRecords); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
