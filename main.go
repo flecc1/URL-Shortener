@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"url-shortener/internal/handlers"
+	"url-shortener/internal/midleware"
 	"url-shortener/internal/storage"
 )
 
@@ -52,7 +53,7 @@ func main() {
 	mux.HandleFunc("GET /{id}", h.RedirectHandler)
 
 	fmt.Println("Сервер запущен на :8080")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	if err := http.ListenAndServe(":8080", midleware.LoggingMiddleware(mux)); err != nil {
 		fmt.Println("ошибка запуска сервера:", err)
 	}
 }
