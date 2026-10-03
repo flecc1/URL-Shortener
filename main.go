@@ -42,13 +42,17 @@ func main() {
 	store := storage.NewPostgresStorage(db)
 	h := handlers.NewHandler(store, "http://localhost:8080")
 
-	http.HandleFunc("/shorten", h.ShortenHandler)
-	http.HandleFunc("/shorten/", h.LinkHandler)
-	http.HandleFunc("/", h.RedirectHandler)
-	http.HandleFunc("/shorten/all", h.GetAllHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /shorten", h.ShortenHandler)
+	mux.HandleFunc("GET /shorten/all", h.GetAllHandler)
+	mux.HandleFunc("GET /shorten/{id}", h.GetLink)
+	mux.HandleFunc("PUT /shorten/{id}", h.UpdateLink)
+	mux.HandleFunc("DELETE /shorten/{id}", h.DeleteLink)
+	mux.HandleFunc("GET /shorten/{id}/stats", h.StatsHandler)
+	mux.HandleFunc("GET /{id}", h.RedirectHandler)
 
 	fmt.Println("Сервер запущен на :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8080", mux); err != nil {
 		fmt.Println("ошибка запуска сервера:", err)
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 	"url-shortener/dto"
 	"url-shortener/internal/storage"
@@ -36,10 +35,6 @@ func IsValidURL(URL string) bool {
 }
 
 func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
 	newURL, err := requestIsValid(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -84,38 +79,8 @@ func (h *Handler) toShortenResponse(record *models.URLRecord) dto.ShortenRespons
 	}
 }
 
-func (h *Handler) LinkHandler(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/shorten/")
-	isStats := strings.HasSuffix(path, "/stats")
-	id := strings.TrimSuffix(path, "/stats")
-
-	if id == "" {
-		http.Error(w, "id required", http.StatusBadRequest)
-		return
-	}
-
-	if isStats {
-		if r.Method != "GET" {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
-		h.StatsHandler(w, r, id)
-		return
-	}
-
-	switch r.Method {
-	case "GET":
-		h.getLink(w, r, id)
-	case "PUT":
-		h.updateLink(w, r, id)
-	case "DELETE":
-		h.deleteLink(w, r, id)
-	default:
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-	}
-}
-
-func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
+func (h *Handler) GetLink(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	record, err := h.store.Get(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -132,10 +97,6 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func (h *Handler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
 	records, err := h.store.GetAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -155,7 +116,8 @@ func (h *Handler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) {
+func (h *Handler) UpdateLink(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	newURL, err := requestIsValid(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -169,7 +131,8 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request, id string) 
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handler) deleteLink(w http.ResponseWriter, r *http.Request, id string) {
+func (h *Handler) DeleteLink(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	if err := h.store.DeleteById(id); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -177,7 +140,8 @@ func (h *Handler) deleteLink(w http.ResponseWriter, r *http.Request, id string) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) StatsHandler(w http.ResponseWriter, r *http.Request, id string) {
+func (h *Handler) StatsHandler(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	record, err := h.store.Get(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -200,11 +164,7 @@ func (h *Handler) StatsHandler(w http.ResponseWriter, r *http.Request, id string
 }
 
 func (h *Handler) RedirectHandler(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/")
-	if id == "" {
-		http.Error(w, "id required", http.StatusBadRequest)
-		return
-	}
+	id := r.PathValue("id")
 
 	record, err := h.store.Get(id)
 	if err != nil {
