@@ -45,7 +45,7 @@ func main() {
 	http.HandleFunc("/shorten", h.ShortenHandler)
 	http.HandleFunc("/shorten/", h.LinkHandler)
 	http.HandleFunc("/", h.RedirectHandler)
-	http.HandleFunc("/all", h.GetAllLinksHandler)
+	http.HandleFunc("/shorten/all", h.GetAllHandler)
 
 	fmt.Println("Сервер запущен на :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
