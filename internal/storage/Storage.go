@@ -11,7 +11,7 @@ type Storage interface {
 	UpdateById(id, url string) error
 	DeleteById(id string) error
 	IncrementAccess(id string) error
-	GetAll() ([]models.URLRecord, error)
+	GetAll() ([]*models.URLRecord, error)
 }
 
 var UrlNotFoundError = errors.New("url not found")

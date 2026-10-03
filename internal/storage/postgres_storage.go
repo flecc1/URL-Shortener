@@ -123,3 +123,35 @@ func (s *PostgresStorage) IncrementAccess(id string) error {
 	}
 	return nil
 }
+
+func (s *PostgresStorage) GetAll() ([]*models.URLRecord, error) {
+	query := `SELECT id, original_url, created_at, accessed_count, COALESCE(last_accessed_at, '0001-01-01 00:00:00') 
+FROM urls`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []*models.URLRecord
+	for rows.Next() {
+		var newURLRecord models.URLRecord
+		if err := rows.Scan(
+			&newURLRecord.ID,
+			&newURLRecord.OriginalURL,
+			&newURLRecord.CreatedAt,
+			&newURLRecord.AccessedCount,
+			&newURLRecord.LastAccessedAt); err != nil {
+			return nil, err
+		}
+
+		records = append(records, &newURLRecord)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
