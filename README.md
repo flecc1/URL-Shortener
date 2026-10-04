@@ -1,49 +1,55 @@
-# URL Shortener (Go)
+# URL Shortener
 
-REST API для сокращения ссылок на Go, реализованный на стандартной библиотеке `net/http`, без сторонних фреймворков. Хранилище спрятано за интерфейсом — поддерживаются in-memory и PostgreSQL реализации, переключаются одной строкой в `main.go`.
+A REST API for shortening URLs, built in Go using only the standard library — no third-party web framework. The storage layer sits behind an interface, with both an in-memory and a PostgreSQL implementation provided; swapping between them is a one-line change in `main.go`.
 
-## Возможности
+## Features
 
-- Сокращение ссылки с генерацией уникального кода (6 символов, буквы+цифры)
-- Редирект по короткой ссылке с подсчётом переходов
-- Получение информации о ссылке без перехода
-- Обновление оригинального URL
-- Удаление короткой ссылки
-- Статистика переходов (количество и время последнего доступа)
-- Валидация входного URL (схема http/https, наличие хоста)
+- Shorten a URL with a randomly generated 6-character code
+- Redirect through a short link, with per-link access tracking
+- Fetch a link's details without following the redirect
+- List all stored links
+- Update a link's target URL
+- Delete a link
+- Access statistics (hit count, last accessed time)
+- URL validation (scheme and host required)
+- Request logging middleware (method, path, duration)
 
-## Технологии
+## Stack
 
-- Go, стандартная библиотека: `net/http`, `encoding/json`, `net/url`, `crypto/rand`, `database/sql`
-- Драйвер PostgreSQL: `jackc/pgx/v5/stdlib`
-- Переменные окружения из `.env`: `joho/godotenv`
-- Роутинг на чистом `http.HandleFunc` (без сторонних роутеров), с ручным разбором метода и параметров пути
-- Хранилище спрятано за интерфейсом `Storage`: `MemoryStorage` (map в памяти) и `PostgresStorage` (SQL, параметризованные запросы)
+- **Go 1.22+** — standard library only for HTTP: `net/http`, `encoding/json`, `net/url`, `database/sql`, `log/slog`
+- **PostgreSQL** via `jackc/pgx/v5/stdlib`
+- **godotenv** for loading local environment variables
+- Routing on `net/http`'s built-in `ServeMux` (Go 1.22+ method-aware patterns, e.g. `"GET /shorten/{id}"`) — no router dependency
+- Storage behind a `Storage` interface: `MemoryStorage` (map-backed) and `PostgresStorage` (parameterized SQL queries)
 
-## Архитектура
+## Architecture
 
 ```
 url-shortener/
 ├── main.go
-├── init.sql                      # схема таблицы urls
-├── .env.example                  # шаблон переменных окружения
+├── init.sql                        # table schema
+├── .env.example
 ├── models/
-│   └── url.go                    # структура URLRecord
-├── internal/
-│   ├── storage/
-│   │   ├── storage.go            # интерфейс Storage
-│   │   ├── memory_storage.go     # реализация на map
-│   │   ├── postgres_storage.go   # реализация на PostgreSQL
-│   │   └── id_generator.go       # генерация случайного кода
-│   └── handlers/
-│       └── handlers.go           # HTTP-обработчики
-└── dto/
-    └── Dtos.go                   # структуры запросов/ответов
+│   └── url.go                      # URLRecord
+├── dto/
+│   └── dto.go                      # request/response payloads
+└── internal/
+    ├── storage/
+    │   ├── storage.go              # Storage interface
+    │   ├── memory_storage.go       # in-memory implementation
+    │   ├── postgres_storage.go     # PostgreSQL implementation
+    │   └── id_generator.go         # random short-code generator
+    ├── handlers/
+    │   └── handlers.go             # HTTP handlers
+    └── middleware/
+        └── logging.go              # request logging
 ```
 
-## Запуск
+The `Storage` interface is the backbone of the design: handlers depend only on the interface, never on a concrete storage type. Switching from an in-memory store to PostgreSQL required a single change in `main.go` and zero changes to `handlers`.
 
-### 1. База данных
+## Getting started
+
+### 1. Database
 
 ```bash
 psql -h localhost -p 5432 -U <username>
@@ -52,80 +58,79 @@ CREATE DATABASE urlshortener;
 \i init.sql
 ```
 
-### 2. Переменные окружения
+### 2. Environment
 
-Скопируй `.env.example` в `.env` и заполни реальными значениями:
+```bash
+cp .env.example .env
+```
+Fill in your local credentials:
 ```
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=<username>
-DB_PASSWORD=<password>
+DB_USER=your_username
+DB_PASSWORD=your_password
 DB_NAME=urlshortener
 ```
 
-### 3. Запуск сервера
+### 3. Run
 
 ```bash
 git clone https://github.com/flecc1/URL-Shortener.git
 cd URL-Shortener
 go run main.go
 ```
-Сервер поднимается на `http://localhost:8080`.
+Server starts on `http://localhost:8080`.
 
-## Эндпоинты
+## API
 
-| Метод  | Путь                  | Описание                         |
-|--------|-----------------------|----------------------------------|
-| POST   | `/shorten`            | Создать короткую ссылку          |
-| GET    | `/{id}`               | Перейти по короткой ссылке (302) |
-| GET    | `/shorten/{id}`       | Получить информацию о ссылке     |
-| PUT    | `/shorten/{id}`       | Обновить оригинальный URL        |
-| DELETE | `/shorten/{id}`       | Удалить ссылку                   |
-| GET    | `/shorten/{id}/stats` | Статистика переходов             |
-| GET    | `/shorten/all`        | Вытащить все ссылки              |
+| Method | Path                   | Description                  |
+|--------|------------------------|-------------------------------|
+| POST   | `/shorten`             | Create a short link           |
+| GET    | `/{id}`                | Redirect to the original URL  |
+| GET    | `/shorten/all`         | List all links                |
+| GET    | `/shorten/{id}`        | Get link details              |
+| PUT    | `/shorten/{id}`        | Update the target URL         |
+| DELETE | `/shorten/{id}`        | Delete a link                 |
+| GET    | `/shorten/{id}/stats`  | Access statistics             |
 
-## Пример использования
+## Example
 
-**Создание ссылки:**
 ```bash
 curl -X POST http://localhost:8080/shorten \
   -d '{"url": "https://google.com"}'
 ```
-Ответ (201):
 ```json
 {
-	"id": "AULm6Z",
-	"short_url": "http://localhost:8080/AULm6Z",
-	"original_url": "https://google.com",
-	"created_at": "2026-09-27T11:49:42+03:00"
+  "id": "AULm6Z",
+  "short_url": "http://localhost:8080/AULm6Z",
+  "original_url": "https://google.com",
+  "created_at": "2026-09-27T11:49:42+03:00"
 }
 ```
 
-**Переход по ссылке:** открыть `http://localhost:8080/AULm6Z` в браузере — редирект на оригинальный URL.
-
-**Статистика:**
 ```bash
 curl http://localhost:8080/shorten/AULm6Z/stats
 ```
 
-## Что было изучено на этом проекте
+## Design notes
 
-- Базовая работа с `net/http`: обработчики, `ResponseWriter`/`Request`, статус-коды
-- Ручной разбор метода и параметров пути при роутинге через `http.HandleFunc`
-- Проектирование через интерфейсы: `Storage` отделяет бизнес-логику от конкретного хранилища — переключение между map и PostgreSQL не потребовало менять `handlers` вообще
-- Dependency injection через конструктор (`NewHandler`, `NewMemoryStorage`, `NewPostgresStorage`)
-- Работа с JSON в теле HTTP-запроса и ответа
-- Работа с `database/sql`: `QueryRow`/`Exec`, параметризованные запросы (`$1, $2`) для защиты от SQL-инъекций, `RowsAffected()` для различения «не найдено» от ошибки, `errors.Is(err, sql.ErrNoRows)`
-- Переменные окружения и `.env` для хранения креды вне кода/репозитория
-- Разделение на `internal/` (код приложения) и публичные пакеты (`models`, `dto`)
-- Рекурсивная проверка коллизии при генерации уникального ID
+- **Interface-driven storage.** `Storage` defines the contract (`Create`, `Get`, `GetAll`, `UpdateById`, `DeleteById`, `IncrementAccess`); `handlers` is written against the interface, not a concrete type. This is what made the in-memory → PostgreSQL migration a no-op for the handler layer.
+- **SQL injection safety.** All PostgreSQL queries use parameterized placeholders (`$1`, `$2`, …) — no string concatenation with user input, anywhere.
+- **Routing.** Built on Go 1.22's enhanced `ServeMux`: HTTP method and path parameters are declared directly in the pattern (`"PUT /shorten/{id}"`), extracted via `r.PathValue(...)`. No manual path parsing, no external router.
+- **Error handling.** A shared `ErrNotFound` sentinel is used by both storage implementations, so callers can check for it with `errors.Is` regardless of which backend is active. `database/sql` errors are distinguished by cause: `sql.ErrNoRows` → 404, everything else → 500; `RowsAffected()` is checked on `UPDATE`/`DELETE` to detect a no-op write.
+- **Dependency injection.** Both `Handler` and each storage implementation are constructed explicitly (`NewHandler`, `NewMemoryStorage`, `NewPostgresStorage`) rather than relying on global state.
 
-## Известные ограничения / что улучшить дальше
+## Known limitations
 
-- `sync.RWMutex` в `MemoryStorage` пока не задействован — планируется при изучении конкурентности
-- Нет автоматических тестов
-- Нет пула соединений с тонкой настройкой (`SetMaxOpenConns` и т.д.) — используются значения по умолчанию
+- `MemoryStorage` has a `sync.RWMutex` field declared but not yet wired in — concurrency safety is scheduled once goroutines/channels are covered
+- No automated tests yet
+- `GetAll` has no pagination
+- Connection pool uses `database/sql` defaults (no `SetMaxOpenConns` tuning)
 
-## Автор
+## What this project covers
 
-flecc1 — учебный проект в рамках изучения Go
+Built while working through *The Go Programming Language* (Donovan & Kernighan), chapters 1–7, alongside Go by Example and hands-on practice. Topics applied here: structs and methods, interfaces, closures, recursion, `net/http` from first principles (including the pre- and post-1.22 routing styles), `database/sql`, middleware, and package-level architecture (`internal/`, dependency injection via constructors).
+
+## Author
+
+flecc1
