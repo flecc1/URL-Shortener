@@ -44,12 +44,12 @@ func (m *MemoryStorage) Get(id string) (*models.URLRecord, error) {
 	if record, ok := m.data[id]; ok {
 		return record, nil
 	}
-	return nil, RecordNotFoundError
+	return nil, ErrRecordNotFound
 }
 
 func (m *MemoryStorage) DeleteById(id string) error {
 	if _, ok := m.data[id]; !ok {
-		return RecordNotFoundError
+		return ErrRecordNotFound
 	}
 	delete(m.data, id)
 	return nil
@@ -60,7 +60,7 @@ func (m *MemoryStorage) UpdateById(id, url string) error {
 		record.OriginalURL = url
 		return nil
 	}
-	return RecordNotFoundError
+	return ErrRecordNotFound
 }
 
 func (m *MemoryStorage) IncrementAccess(id string) error {
@@ -69,7 +69,7 @@ func (m *MemoryStorage) IncrementAccess(id string) error {
 		record.LastAccessedAt = time.Now()
 		return nil
 	}
-	return RecordNotFoundError
+	return ErrRecordNotFound
 }
 
 func (m *MemoryStorage) GetAll() ([]*models.URLRecord, error) {
