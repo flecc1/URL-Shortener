@@ -1,12 +1,14 @@
 package storage
 
 import (
+	"sync"
 	"time"
 	"url-shortener/models"
 )
 
 type MemoryStorage struct {
 	data map[string]*models.URLRecord
+	mu   sync.RWMutex
 }
 
 func (m *MemoryStorage) generateUniqID() (string, error) {
@@ -27,27 +29,38 @@ func NewMemoryStorage() *MemoryStorage {
 }
 
 func (m *MemoryStorage) Create(url string) (*models.URLRecord, error) {
-	var newURLRecord models.URLRecord
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	id, err := m.generateUniqID()
 	if err != nil {
 		return nil, err
 	}
-	newURLRecord.ID = id
-	newURLRecord.OriginalURL = url
-	newURLRecord.CreatedAt = time.Now()
-	newURLRecord.AccessedCount = 0
-	m.data[id] = &newURLRecord
-	return &newURLRecord, nil
+
+	newURLRecord := &models.URLRecord{
+		ID:            id,
+		CreatedAt:     time.Now(),
+		OriginalURL:   url,
+		AccessedCount: 0,
+	}
+
+	m.data[id] = newURLRecord
+	tempURLRecord := *newURLRecord
+	return &tempURLRecord, nil
 }
 
 func (m *MemoryStorage) Get(id string) (*models.URLRecord, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if record, ok := m.data[id]; ok {
-		return record, nil
+		tempURLRecord := *record
+		return &tempURLRecord, nil
 	}
 	return nil, ErrRecordNotFound
 }
 
 func (m *MemoryStorage) DeleteById(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if _, ok := m.data[id]; !ok {
 		return ErrRecordNotFound
 	}
@@ -56,6 +69,8 @@ func (m *MemoryStorage) DeleteById(id string) error {
 }
 
 func (m *MemoryStorage) UpdateById(id, url string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if record, ok := m.data[id]; ok {
 		record.OriginalURL = url
 		return nil
@@ -64,6 +79,8 @@ func (m *MemoryStorage) UpdateById(id, url string) error {
 }
 
 func (m *MemoryStorage) IncrementAccess(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if record, ok := m.data[id]; ok {
 		record.AccessedCount++
 		record.LastAccessedAt = time.Now()
@@ -73,9 +90,12 @@ func (m *MemoryStorage) IncrementAccess(id string) error {
 }
 
 func (m *MemoryStorage) GetAll() ([]*models.URLRecord, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	records := make([]*models.URLRecord, 0, len(m.data))
 	for _, record := range m.data {
-		records = append(records, record)
+		tempURLRecord := *record
+		records = append(records, &tempURLRecord)
 	}
 	return records, nil
 }
