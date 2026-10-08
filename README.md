@@ -20,7 +20,7 @@ A REST API for shortening URLs, built in Go using only the standard library — 
 - **PostgreSQL** via `jackc/pgx/v5/stdlib`
 - **godotenv** for loading local environment variables
 - Routing on `net/http`'s built-in `ServeMux` (Go 1.22+ method-aware patterns, e.g. `"GET /shorten/{id}"`) — no router dependency
-- Storage behind a `Storage` interface: `MemoryStorage` (map-backed) and `PostgresStorage` (parameterized SQL queries)
+- Storage behind a `Storage` interface: `MemoryStorage` (map-backed, guarded by `sync.RWMutex`) and `PostgresStorage` (parameterized SQL queries)
 
 ## Architecture
 
@@ -115,14 +115,14 @@ curl http://localhost:8080/shorten/AULm6Z/stats
 ## Design notes
 
 - **Interface-driven storage.** `Storage` defines the contract (`Create`, `Get`, `GetAll`, `UpdateById`, `DeleteById`, `IncrementAccess`); `handlers` is written against the interface, not a concrete type. This is what made the in-memory → PostgreSQL migration a no-op for the handler layer.
+- **Concurrency safety in `MemoryStorage`.** Every HTTP request runs in its own goroutine, so access to the map is guarded by a `sync.RWMutex`. Methods that modify the map or a record's fields (`Create`, `UpdateById`, `DeleteById`, `IncrementAccess`) take `Lock`; read-only methods (`Get`, `GetAll`) take `RLock`. Unlocking is deferred right after locking. `Create` generates a unique ID and inserts the record under a single lock, so the check-then-insert is atomic. `Create`, `Get` and `GetAll` return copies of records rather than pointers into the map, so callers never read data that another goroutine is modifying.
 - **SQL injection safety.** All PostgreSQL queries use parameterized placeholders (`$1`, `$2`, …) — no string concatenation with user input, anywhere.
 - **Routing.** Built on Go 1.22's enhanced `ServeMux`: HTTP method and path parameters are declared directly in the pattern (`"PUT /shorten/{id}"`), extracted via `r.PathValue(...)`. No manual path parsing, no external router.
-- **Error handling.** A shared `ErrNotFound` sentinel is used by both storage implementations, so callers can check for it with `errors.Is` regardless of which backend is active. `database/sql` errors are distinguished by cause: `sql.ErrNoRows` → 404, everything else → 500; `RowsAffected()` is checked on `UPDATE`/`DELETE` to detect a no-op write.
+- **Error handling.** A shared `ErrRecordNotFound` sentinel is used by both storage implementations, so callers can check for it with `errors.Is` regardless of which backend is active. `database/sql` errors are distinguished by cause: `sql.ErrNoRows` → 404, everything else → 500; `RowsAffected()` is checked on `UPDATE`/`DELETE` to detect a no-op write.
 - **Dependency injection.** Both `Handler` and each storage implementation are constructed explicitly (`NewHandler`, `NewMemoryStorage`, `NewPostgresStorage`) rather than relying on global state.
 
 ## Known limitations
 
-- `MemoryStorage` has a `sync.RWMutex` field declared but not yet wired in — concurrency safety is scheduled once goroutines/channels are covered
 - No automated tests yet
 - `GetAll` has no pagination
 - Connection pool uses `database/sql` defaults (no `SetMaxOpenConns` tuning)
