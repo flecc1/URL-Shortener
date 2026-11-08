@@ -1,102 +1,80 @@
 # URL Shortener
 
-A REST API for shortening URLs, built in Go using only the standard library — no third-party web framework. The storage layer sits behind an interface, with both an in-memory and a PostgreSQL implementation provided; swapping between them is a one-line change in `main.go`.
+A REST API for shortening URLs, written in Go using only the standard library for HTTP, with no web framework or router. Links are stored in PostgreSQL. Storage sits behind an interface, and an in-memory implementation is included too; switching between them takes one line in `main.go`. The whole stack starts with a single `docker compose up`.
 
 ## Features
 
-- Shorten a URL with a randomly generated 6-character code
-- Redirect through a short link, with per-link access tracking
+- Shorten a URL into a random 6-character code
+- Redirect through a short link, counting each visit
 - Fetch a link's details without following the redirect
-- List all stored links
-- Update a link's target URL
-- Delete a link
-- Access statistics (hit count, last accessed time)
-- URL validation (scheme and host required)
+- List, update and delete links
+- Per-link statistics: hit count, creation time, last visit
+- URL validation (`http`/`https` scheme and a host are required)
 - Request logging middleware (method, path, duration)
 
 ## Stack
 
-- **Go 1.22+** — standard library only for HTTP: `net/http`, `encoding/json`, `net/url`, `database/sql`, `log/slog`
-- **PostgreSQL** via `jackc/pgx/v5/stdlib`
-- **godotenv** for loading local environment variables
-- Routing on `net/http`'s built-in `ServeMux` (Go 1.22+ method-aware patterns, e.g. `"GET /shorten/{id}"`) — no router dependency
-- Storage behind a `Storage` interface: `MemoryStorage` (map-backed, guarded by `sync.RWMutex`) and `PostgresStorage` (parameterized SQL queries)
+- **Go 1.27**, standard library: `net/http`, `encoding/json`, `net/url`, `database/sql`, `log/slog`, `crypto/rand`
+- **PostgreSQL 17** via `jackc/pgx/v5/stdlib`
+- **Docker**: multi-stage `Dockerfile` plus `docker-compose.yml` with Postgres
+- **godotenv** for loading `.env` when running locally
 
-## Architecture
+## Quick start (Docker)
 
-```
-url-shortener/
-├── main.go
-├── init.sql                        # table schema
-├── .env.example
-├── models/
-│   └── url.go                      # URLRecord
-├── dto/
-│   └── dto.go                      # request/response payloads
-└── internal/
-    ├── storage/
-    │   ├── storage.go              # Storage interface
-    │   ├── memory_storage.go       # in-memory implementation
-    │   ├── postgres_storage.go     # PostgreSQL implementation
-    │   └── id_generator.go         # random short-code generator
-    ├── handlers/
-    │   └── handlers.go             # HTTP handlers
-    └── middleware/
-        └── logging.go              # request logging
-```
-
-The `Storage` interface is the backbone of the design: handlers depend only on the interface, never on a concrete storage type. Switching from an in-memory store to PostgreSQL required a single change in `main.go` and zero changes to `handlers`.
-
-## Getting started
-
-### 1. Database
-
-```bash
-psql -h localhost -p 5432 -U <username>
-CREATE DATABASE urlshortener;
-\c urlshortener
-\i init.sql
-```
-
-### 2. Environment
-
-```bash
-cp .env.example .env
-```
-Fill in your local credentials:
-```
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=your_username
-DB_PASSWORD=your_password
-DB_NAME=urlshortener
-```
-
-### 3. Run
+You only need Docker installed.
 
 ```bash
 git clone https://github.com/flecc1/URL-Shortener.git
 cd URL-Shortener
-go run main.go
+cp .env.example .env      # set DB_USER, DB_PASSWORD (must not be empty), DB_NAME
+docker compose up --build
 ```
-Server starts on `http://localhost:8080`.
+
+The API is available at `http://localhost:8080`.
+
+What happens on startup:
+1. Postgres starts and, on first run, creates the user and database from `.env` and applies `scheme/init.sql`.
+2. Compose waits for the database healthcheck (`pg_isready`) to pass.
+3. The app container starts and connects to the database by service name (`DB_HOST=postgres`).
+
+Data is kept in the `pgdata` volume and survives `docker compose down`. To reset the database completely:
+
+```bash
+docker compose down -v
+```
+
+## Running locally (without Docker)
+
+Requires Go 1.27+ and a running PostgreSQL.
+
+```bash
+createdb urlshortener
+psql -d urlshortener -f scheme/init.sql
+cp .env.example .env      # DB_HOST=localhost and your local credentials
+go run .
+```
 
 ## API
 
-| Method | Path                   | Description                  |
-|--------|------------------------|-------------------------------|
-| POST   | `/shorten`             | Create a short link           |
-| GET    | `/{id}`                | Redirect to the original URL  |
-| GET    | `/shorten/all`         | List all links                |
-| GET    | `/shorten/{id}`        | Get link details              |
-| PUT    | `/shorten/{id}`        | Update the target URL         |
-| DELETE | `/shorten/{id}`        | Delete a link                 |
-| GET    | `/shorten/{id}/stats`  | Access statistics             |
+| Method | Path                  | Description                 | Success |
+|--------|-----------------------|-----------------------------|---------|
+| POST   | `/shorten`            | Create a short link         | 201     |
+| GET    | `/{id}`               | Redirect to the original URL | 302    |
+| GET    | `/shorten/all`        | List all links              | 200     |
+| GET    | `/shorten/{id}`       | Get link details            | 200     |
+| PUT    | `/shorten/{id}`       | Update the target URL       | 200     |
+| DELETE | `/shorten/{id}`       | Delete a link               | 204     |
+| GET    | `/shorten/{id}/stats` | Access statistics           | 200     |
 
-## Example
+Invalid input returns `400`, an unknown id returns `404`.
+
+### Examples
+
+Create a link:
 
 ```bash
 curl -X POST http://localhost:8080/shorten \
+  -H 'Content-Type: application/json' \
   -d '{"url": "https://google.com"}'
 ```
 ```json
@@ -104,32 +82,73 @@ curl -X POST http://localhost:8080/shorten \
   "id": "AULm6Z",
   "short_url": "http://localhost:8080/AULm6Z",
   "original_url": "https://google.com",
-  "created_at": "2026-09-27T11:49:42+03:00"
+  "created_at": "2026-09-27T11:49:42Z"
 }
 ```
 
+Follow it and check the stats:
+
 ```bash
+curl -i http://localhost:8080/AULm6Z
 curl http://localhost:8080/shorten/AULm6Z/stats
+```
+```json
+{
+  "id": "AULm6Z",
+  "created_at": "2026-09-27T11:49:42Z",
+  "last_access_at": "2026-09-27T11:50:03Z",
+  "access_count": 1
+}
+```
+
+## Project structure
+
+```
+URL-Shortener/
+├── main.go                         # config, DB connection, routes, server
+├── Dockerfile                      # multi-stage build
+├── docker-compose.yml              # app + Postgres
+├── .env.example
+├── scheme/
+│   └── init.sql                    # table schema
+├── models/
+│   └── url.go                      # URLRecord
+├── dto/
+│   └── Dtos.go                     # request/response payloads
+└── internal/
+    ├── storage/
+    │   ├── Storage.go              # Storage interface + ErrRecordNotFound
+    │   ├── memory-storage.go       # in-memory implementation
+    │   ├── postgres_storage.go     # PostgreSQL implementation
+    │   └── idgen.go                # random short-code generator
+    ├── handlers/
+    │   └── handlers.go             # HTTP handlers
+    └── midleware/
+        └── logging.go              # request logging
 ```
 
 ## Design notes
 
-- **Interface-driven storage.** `Storage` defines the contract (`Create`, `Get`, `GetAll`, `UpdateById`, `DeleteById`, `IncrementAccess`); `handlers` is written against the interface, not a concrete type. This is what made the in-memory → PostgreSQL migration a no-op for the handler layer.
-- **Concurrency safety in `MemoryStorage`.** Every HTTP request runs in its own goroutine, so access to the map is guarded by a `sync.RWMutex`. Methods that modify the map or a record's fields (`Create`, `UpdateById`, `DeleteById`, `IncrementAccess`) take `Lock`; read-only methods (`Get`, `GetAll`) take `RLock`. Unlocking is deferred right after locking. `Create` generates a unique ID and inserts the record under a single lock, so the check-then-insert is atomic. `Create`, `Get` and `GetAll` return copies of records rather than pointers into the map, so callers never read data that another goroutine is modifying.
-- **SQL injection safety.** All PostgreSQL queries use parameterized placeholders (`$1`, `$2`, …) — no string concatenation with user input, anywhere.
-- **Routing.** Built on Go 1.22's enhanced `ServeMux`: HTTP method and path parameters are declared directly in the pattern (`"PUT /shorten/{id}"`), extracted via `r.PathValue(...)`. No manual path parsing, no external router.
-- **Error handling.** A shared `ErrRecordNotFound` sentinel is used by both storage implementations, so callers can check for it with `errors.Is` regardless of which backend is active. `database/sql` errors are distinguished by cause: `sql.ErrNoRows` → 404, everything else → 500; `RowsAffected()` is checked on `UPDATE`/`DELETE` to detect a no-op write.
-- **Dependency injection.** Both `Handler` and each storage implementation are constructed explicitly (`NewHandler`, `NewMemoryStorage`, `NewPostgresStorage`) rather than relying on global state.
+- **Interface-driven storage.** Handlers depend only on the `Storage` interface (`Create`, `Get`, `GetAll`, `UpdateById`, `DeleteById`, `IncrementAccess`), never on a concrete type. Moving from the in-memory store to PostgreSQL changed one line in `main.go` and nothing in `handlers`.
+- **Concurrency safety in `MemoryStorage`.** Each HTTP request runs in its own goroutine, so the map is guarded by a `sync.RWMutex`: writes take `Lock`, reads take `RLock`. `Create` generates an id and inserts it under a single lock, so check-then-insert is atomic. Reads return copies, never pointers into the map.
+- **Short ids.** Generated with `crypto/rand` from a 62-character alphabet, which gives about 56 billion combinations for 6 characters.
+- **SQL injection safety.** Every query uses placeholders (`$1`, `$2`, …); user input is never concatenated into SQL.
+- **Routing.** Uses the method-aware `ServeMux` patterns (`"PUT /shorten/{id}"`) with `r.PathValue("id")`, so there is no manual path parsing and no external router.
+- **Error handling.** Both storage backends return the shared `ErrRecordNotFound` sentinel, which can be checked with `errors.Is`. For Postgres, `sql.ErrNoRows` and `RowsAffected() == 0` on `UPDATE`/`DELETE` map to "not found".
+- **Dependency injection.** `Handler` and the storages are built with explicit constructors (`NewHandler`, `NewMemoryStorage`, `NewPostgresStorage`), with no global state.
+- **Containerization.** The Go binary is compiled statically (`CGO_ENABLED=0`) in a `golang` image and copied into a small `alpine` image. `go.mod`/`go.sum` are copied before the source so the dependency layer stays cached. Compose starts the app only after the Postgres healthcheck passes, because the app exits if it can't reach the database at startup.
 
 ## Known limitations
 
 - No automated tests yet
+- The base URL for short links (`http://localhost:8080`) is hard-coded in `main.go` rather than read from config
+- The schema is applied by `init.sql` only when the database is first created; there are no migrations
 - `GetAll` has no pagination
-- Connection pool uses `database/sql` defaults (no `SetMaxOpenConns` tuning)
+- Connection pool uses the `database/sql` defaults
 
 ## What this project covers
 
-Built while working through *The Go Programming Language* (Donovan & Kernighan), chapters 1–7, alongside Go by Example and hands-on practice. Topics applied here: structs and methods, interfaces, closures, recursion, `net/http` from first principles (including the pre- and post-1.22 routing styles), `database/sql`, middleware, and package-level architecture (`internal/`, dependency injection via constructors).
+Built while working through *The Go Programming Language* (Donovan & Kernighan), chapters 1–7, alongside Go by Example and hands-on practice. Topics applied here: structs and methods, interfaces, closures, `net/http` from first principles (both the old and the method-aware routing styles), `database/sql`, middleware, package layout with `internal/`, dependency injection through constructors, and containerizing a Go service with Docker and Compose.
 
 ## Author
 
